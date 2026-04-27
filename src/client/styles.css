@@ -1,0 +1,181 @@
+:root {
+  color: #202124;
+  background: #f6f7f9;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 32px;
+  color: #f8fafc;
+  background: #203040;
+}
+
+.sidebar h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.sidebar p {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  color: #d6f5e3;
+  font-size: 14px;
+}
+
+.status span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #36d399;
+}
+
+.chat-panel {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  min-width: 0;
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding: 8px 0 24px;
+}
+
+.message {
+  max-width: min(760px, 88%);
+  padding: 16px 18px;
+  border: 1px solid #dce1e8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(32, 48, 64, 0.08);
+}
+
+.message.user {
+  align-self: flex-end;
+  color: #ffffff;
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.message-role {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.message p {
+  margin: 0;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.error-banner {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 12px;
+  align-items: stretch;
+  padding: 14px;
+  border: 1px solid #dce1e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  line-height: 1.6;
+}
+
+.composer button {
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #0f766e;
+  cursor: pointer;
+}
+
+.composer button:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    padding: 24px;
+  }
+
+  .status {
+    margin-top: 0;
+  }
+
+  .chat-panel {
+    min-height: calc(100vh - 220px);
+    padding: 18px;
+  }
+
+  .message {
+    max-width: 100%;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .composer button {
+    min-height: 44px;
+  }
+}
