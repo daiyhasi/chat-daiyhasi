@@ -1,6 +1,8 @@
 import { Router } from "express";
 import type { ChatContentPart, ChatRequest, ChatResponse } from "../../shared/chat.js";
+import { logError, logInfo, toLogError } from "../logger.js";
 import type { ModelProvider } from "../providers/model-provider.js";
+import { systemPrompt } from "../system-prompt.js";
 
 export function createChatRouter(provider: ModelProvider): Router {
   const router = Router();
@@ -20,8 +22,18 @@ export function createChatRouter(provider: ModelProvider): Router {
     }
 
     try {
+      logInfo("chat.legacy.request", {
+        messageCount: body.messages!.length
+      });
+
       const result = await provider.generateChat({
-        messages: body.messages!,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          ...body.messages!.filter((message) => message.role !== "system")
+        ],
         temperature: body.temperature,
         maxTokens: body.maxTokens
       });
@@ -38,6 +50,7 @@ export function createChatRouter(provider: ModelProvider): Router {
       response.json(payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown chat error.";
+      logError("chat.legacy.failed", toLogError(error));
       response.status(500).json({
         error: {
           message,

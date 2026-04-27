@@ -7,6 +7,7 @@
 - React + Vite：聊天界面
 - Express：后端 API
 - TypeScript：前后端共享类型
+- SQLite：本地保存会话和消息历史
 - Provider 抽象：先接火山引擎，后续可替换或并联其他模型
 
 ## 快速开始
@@ -45,6 +46,7 @@ src/
   client/        # React 聊天界面
   server/        # Express API 与模型接入
   shared/        # 前后端共享类型
+data/            # 本地 SQLite 数据库，已忽略提交
 docs/
   architecture.md
 ```
@@ -53,5 +55,5 @@ docs/
 
 1. 明确火山引擎模型 ID 和调用参数。
 2. 增加流式响应，让聊天体验更接近真实产品。
-3. 增加会话存储、系统提示词模板和工具调用层。
+3. 增加会话搜索、重命名、删除和摘要记忆。
 4. 用真实 JD 场景沉淀 Agent 能力清单和评测用例。

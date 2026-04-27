@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../../shared/chat.js";
+import { logError, logInfo, toLogError } from "../logger.js";
 import type { GenerateChatOptions, GenerateChatResult, ModelProvider } from "./model-provider.js";
 
 interface VolcengineProviderConfig {
@@ -6,6 +7,7 @@ interface VolcengineProviderConfig {
   baseUrl: string;
   model: string;
   timeoutMs: number;
+  defaultMaxOutputTokens: number;
 }
 
 interface ArkInputTextPart {
@@ -46,14 +48,18 @@ interface ArkResponsesResponse {
 export class VolcengineProvider implements ModelProvider {
   private readonly apiKey: string;
   private readonly baseUrl: string;
+  private readonly responsesUrl: string;
   private readonly model: string;
   private readonly timeoutMs: number;
+  private readonly defaultMaxOutputTokens: number;
 
   constructor(config: VolcengineProviderConfig) {
     this.apiKey = config.apiKey;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.responsesUrl = `${this.baseUrl}/responses`;
     this.model = config.model;
     this.timeoutMs = config.timeoutMs;
+    this.defaultMaxOutputTokens = config.defaultMaxOutputTokens;
   }
 
   async generateChat(options: GenerateChatOptions): Promise<GenerateChatResult> {
@@ -61,24 +67,46 @@ export class VolcengineProvider implements ModelProvider {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const startedAt = Date.now();
+    const requestBody = {
+      model: this.model,
+      input: this.toArkInput(options.messages),
+      temperature: options.temperature ?? 0.7,
+      max_output_tokens: options.maxTokens ?? this.defaultMaxOutputTokens
+    };
+
+    logInfo("ark.responses.request", {
+      url: this.responsesUrl,
+      model: this.model,
+      messageCount: options.messages.length,
+      inputCount: requestBody.input.length,
+      inputSummary: summarizeInput(requestBody.input),
+      temperature: requestBody.temperature,
+      maxOutputTokens: requestBody.max_output_tokens
+    });
 
     try {
-      const response = await fetch(`${this.baseUrl}/responses`, {
+      const response = await fetch(this.responsesUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model: this.model,
-          input: this.toArkInput(options.messages),
-          temperature: options.temperature ?? 0.7,
-          max_output_tokens: options.maxTokens ?? 1000
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
 
       const data = (await response.json()) as ArkResponsesResponse;
+      const elapsedMs = Date.now() - startedAt;
+
+      logInfo("ark.responses.response", {
+        status: response.status,
+        ok: response.ok,
+        elapsedMs,
+        hasOutputText: Boolean(data.output_text),
+        outputCount: data.output?.length ?? 0,
+        responsePreview: truncate(JSON.stringify(data), 2000)
+      });
 
       if (!response.ok) {
         const detail = data.error?.message ?? response.statusText;
@@ -88,13 +116,29 @@ export class VolcengineProvider implements ModelProvider {
       const content = this.readResponseText(data);
 
       if (!content) {
-        throw new Error("Volcengine Ark Responses API returned an empty assistant message.");
+        logError("ark.responses.empty_message", {
+          status: response.status,
+          elapsedMs,
+          likelyCause: getEmptyMessageHint(data),
+          responseBody: truncate(JSON.stringify(data), 4000)
+        });
+        throw new Error(
+          `Volcengine Ark Responses API returned an empty assistant message. ${getEmptyMessageHint(data)}`
+        );
       }
 
       return {
         content,
         provider: "volcengine-ark-responses"
       };
+    } catch (error) {
+      logError("ark.responses.failed", {
+        url: this.responsesUrl,
+        model: this.model,
+        elapsedMs: Date.now() - startedAt,
+        ...toLogError(error)
+      });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -190,4 +234,39 @@ export class VolcengineProvider implements ModelProvider {
         .trim() ?? ""
     );
   }
+}
+
+function getEmptyMessageHint(data: ArkResponsesResponse): string {
+  const responseStatus = "status" in data ? data.status : undefined;
+  const incompleteDetails = "incomplete_details" in data ? data.incomplete_details : undefined;
+
+  if (responseStatus === "incomplete" && JSON.stringify(incompleteDetails).includes("length")) {
+    return "The response was incomplete because max_output_tokens was exhausted before final text was produced.";
+  }
+
+  return "No output_text or output_text content block was found in the provider response.";
+}
+
+function summarizeInput(input: ArkInputMessage[]): Array<Record<string, unknown>> {
+  return input.map((message) => ({
+    role: message.role,
+    parts: message.content.map((part) => {
+      if (part.type === "input_image") {
+        return {
+          type: part.type,
+          imageUrl: part.image_url
+        };
+      }
+
+      return {
+        type: part.type,
+        textLength: part.text.length,
+        textPreview: truncate(part.text, 120)
+      };
+    })
+  }));
+}
+
+function truncate(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }

@@ -14,6 +14,14 @@ export default defineConfig({
   },
   build: {
     outDir: "dist/client",
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          antd: ["antd", "@ant-design/icons"]
+        }
+      }
+    }
   }
 });

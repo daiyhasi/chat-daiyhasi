@@ -11,6 +11,7 @@ export interface AppConfig {
     baseUrl: string;
     model: string;
     timeoutMs: number;
+    defaultMaxOutputTokens: number;
   };
 }
 
@@ -25,7 +26,8 @@ export function getConfig(): AppConfig {
         process.env.ANTHROPIC_BASE_URL ??
         "https://ark.cn-beijing.volces.com/api/v3",
       model: process.env.ARK_MODEL ?? process.env.ANTHROPIC_MODEL ?? "doubao-seed-2-0-lite-260215",
-      timeoutMs: Number(process.env.API_TIMEOUT_MS ?? 3000000)
+      timeoutMs: Number(process.env.API_TIMEOUT_MS ?? 3000000),
+      defaultMaxOutputTokens: Number(process.env.ARK_DEFAULT_MAX_OUTPUT_TOKENS ?? 4096)
     }
   };
 }

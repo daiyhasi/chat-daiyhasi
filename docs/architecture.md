@@ -5,7 +5,8 @@
 先搭建一个可运行、可扩展的聊天 bot 骨架。重点不是一次性做完整 Agent，而是给后续能力演进留下清晰边界：
 
 - UI 层：负责输入、展示消息、基础状态。
-- API 层：负责校验请求、组织上下文、调用模型 provider。
+- API 层：负责校验请求、保存历史、组织上下文、调用模型 provider。
+- Storage 层：使用 SQLite 保存会话和消息。
 - Provider 层：隔离具体模型厂商，当前面向火山引擎。
 - Shared 层：沉淀前后端共同使用的数据结构。
 
@@ -13,12 +14,25 @@
 
 ```text
 React Chat UI
-  -> POST /api/chat
-  -> chat route
+  -> session APIs
+  -> SQLite history
+  -> last 20 user/assistant messages + system prompt
   -> model provider
   -> Volcengine Ark Responses API
   -> normalized assistant message
+  -> SQLite history
 ```
+
+## 会话 API
+
+```text
+GET  /api/sessions
+POST /api/sessions
+GET  /api/sessions/:sessionId/messages
+POST /api/sessions/:sessionId/messages
+```
+
+第一版每次调用模型只取最近 20 条 user/assistant 消息，约等于最近 10 轮对话。
 
 ## Provider 设计
 
