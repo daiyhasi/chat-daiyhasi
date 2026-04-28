@@ -54,6 +54,34 @@ export interface CreateSessionMessageResponse {
   provider: string;
 }
 
+export type ModelProviderType = "volcengine-ark-responses";
+
+export interface ModelSettings {
+  provider: ModelProviderType;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  defaultMaxOutputTokens: number;
+  timeoutMs: number;
+}
+
+export interface PublicModelSettings extends Omit<ModelSettings, "apiKey"> {
+  hasApiKey: boolean;
+}
+
+export interface ModelSettingsResponse {
+  settings: PublicModelSettings;
+}
+
+export interface UpdateModelSettingsRequest {
+  provider: ModelProviderType;
+  apiKey?: string;
+  baseUrl: string;
+  model: string;
+  defaultMaxOutputTokens: number;
+  timeoutMs: number;
+}
+
 export interface ChatResponse {
   message: ChatMessage;
   provider: string;

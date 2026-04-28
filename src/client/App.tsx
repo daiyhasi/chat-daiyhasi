@@ -5,9 +5,13 @@ import {
   ConfigProvider,
   Empty,
   Flex,
+  Form,
   Input,
   Layout,
   List,
+  InputNumber,
+  Modal,
+  Select,
   Spin,
   theme,
   Typography
@@ -15,6 +19,7 @@ import {
 import {
   LeftOutlined,
   DeleteOutlined,
+  SettingOutlined,
   MessageOutlined,
   PlusOutlined,
   RightOutlined,
@@ -28,7 +33,10 @@ import type {
   CreateSessionMessageResponse,
   CreateSessionResponse,
   ListMessagesResponse,
-  ListSessionsResponse
+  ListSessionsResponse,
+  ModelSettingsResponse,
+  PublicModelSettings,
+  UpdateModelSettingsRequest
 } from "../shared/chat";
 
 const { Sider, Content } = Layout;
@@ -44,7 +52,11 @@ export function App() {
   const [isBooting, setIsBooting] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsSaving, setIsSettingsSaving] = useState(false);
+  const [modelSettings, setModelSettings] = useState<PublicModelSettings | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const [settingsForm] = Form.useForm<UpdateModelSettingsRequest>();
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
 
@@ -62,6 +74,8 @@ export function App() {
 
     try {
       const loadedSessions = await fetchSessions();
+      const loadedSettings = await fetchModelSettings();
+      setModelSettings(loadedSettings);
       if (loadedSessions.length > 0) {
         setSessions(loadedSessions);
         setActiveSessionId(loadedSessions[0].id);
@@ -154,6 +168,41 @@ export function App() {
       setMessages(await fetchMessages(nextSession.id));
     } catch (requestError) {
       setError(toErrorMessage(requestError));
+    }
+  }
+
+  async function handleOpenSettings() {
+    setError("");
+    setIsSettingsOpen(true);
+
+    try {
+      const settings = await fetchModelSettings();
+      setModelSettings(settings);
+      settingsForm.setFieldsValue({
+        provider: settings.provider,
+        apiKey: "",
+        baseUrl: settings.baseUrl,
+        model: settings.model,
+        defaultMaxOutputTokens: settings.defaultMaxOutputTokens,
+        timeoutMs: settings.timeoutMs
+      });
+    } catch (requestError) {
+      setError(toErrorMessage(requestError));
+    }
+  }
+
+  async function handleSaveSettings(values: UpdateModelSettingsRequest) {
+    setIsSettingsSaving(true);
+    setError("");
+
+    try {
+      const settings = await updateModelSettings(values);
+      setModelSettings(settings);
+      setIsSettingsOpen(false);
+    } catch (requestError) {
+      setError(toErrorMessage(requestError));
+    } finally {
+      setIsSettingsSaving(false);
     }
   }
 
@@ -329,9 +378,20 @@ export function App() {
                   )}
                 />
 
-                <Flex align="center" className="status" gap={10}>
-                  <span aria-hidden="true" className="status-dot" />
-                  <Text>火山引擎 Provider</Text>
+                <Flex className="sidebar-footer" gap={10} vertical>
+                  <Button
+                    block
+                    className="settings-button"
+                    icon={<SettingOutlined />}
+                    onClick={() => void handleOpenSettings()}
+                    type="text"
+                  >
+                    模型设置
+                  </Button>
+                  <Flex align="center" className="status" gap={10}>
+                    <span aria-hidden="true" className="status-dot" />
+                    <Text>{modelSettings?.model ?? "未配置模型"}</Text>
+                  </Flex>
                 </Flex>
               </>
             ) : null}
@@ -394,6 +454,74 @@ export function App() {
           </form>
         </Content>
       </Layout>
+
+      <Modal
+        confirmLoading={isSettingsSaving}
+        okText="保存配置"
+        onCancel={() => setIsSettingsOpen(false)}
+        onOk={() => settingsForm.submit()}
+        open={isSettingsOpen}
+        title="模型接入设置"
+        width={640}
+      >
+        <Form
+          form={settingsForm}
+          layout="vertical"
+          onFinish={(values) => void handleSaveSettings(values)}
+          requiredMark={false}
+        >
+          <Form.Item label="模型提供方" name="provider" rules={[{ required: true, message: "请选择模型提供方" }]}>
+            <Select
+              options={[
+                {
+                  label: "火山引擎 Ark Responses API",
+                  value: "volcengine-ark-responses"
+                }
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            extra={modelSettings?.hasApiKey ? "已保存 API Key。留空表示继续使用当前密钥。" : "本地保存，不会返回给前端展示。"}
+            label="API Key"
+            name="apiKey"
+          >
+            <Input.Password autoComplete="off" placeholder="输入新的 API Key，留空则不修改" />
+          </Form.Item>
+
+          <Form.Item
+            label="Base URL"
+            name="baseUrl"
+            rules={[{ required: true, message: "请输入 Base URL" }]}
+          >
+            <Input placeholder="https://ark.cn-beijing.volces.com/api/v3" />
+          </Form.Item>
+
+          <Form.Item label="模型 ID" name="model" rules={[{ required: true, message: "请输入模型 ID" }]}>
+            <Input placeholder="doubao-seed-2-0-lite-260215" />
+          </Form.Item>
+
+          <Flex gap={16}>
+            <Form.Item
+              className="settings-number-field"
+              label="默认输出 Tokens"
+              name="defaultMaxOutputTokens"
+              rules={[{ required: true, message: "请输入默认输出 tokens" }]}
+            >
+              <InputNumber min={1} step={256} />
+            </Form.Item>
+
+            <Form.Item
+              className="settings-number-field"
+              label="超时时间 ms"
+              name="timeoutMs"
+              rules={[{ required: true, message: "请输入超时时间" }]}
+            >
+              <InputNumber min={1000} step={1000} />
+            </Form.Item>
+          </Flex>
+        </Form>
+      </Modal>
     </ConfigProvider>
   );
 }
@@ -434,6 +562,30 @@ async function deleteSession(sessionId: string): Promise<void> {
     const payload = (await response.json()) as ApiErrorResponse;
     throw new Error(payload.error.message || "删除会话失败");
   }
+}
+
+async function fetchModelSettings(): Promise<PublicModelSettings> {
+  const response = await fetch("/api/settings/model");
+  const payload = (await response.json()) as ModelSettingsResponse | ApiErrorResponse;
+  if (!response.ok || "error" in payload) {
+    throw new Error("error" in payload ? payload.error.message : "加载模型配置失败");
+  }
+
+  return payload.settings;
+}
+
+async function updateModelSettings(values: UpdateModelSettingsRequest): Promise<PublicModelSettings> {
+  const response = await fetch("/api/settings/model", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values)
+  });
+  const payload = (await response.json()) as ModelSettingsResponse | ApiErrorResponse;
+  if (!response.ok || "error" in payload) {
+    throw new Error("error" in payload ? payload.error.message : "保存模型配置失败");
+  }
+
+  return payload.settings;
 }
 
 function renderMessageContent(content: string | ChatContentPart[]): string {

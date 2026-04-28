@@ -31,4 +31,10 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON sessions(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_messages_session_created_at ON messages(session_id, created_at ASC);
+
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);

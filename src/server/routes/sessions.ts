@@ -9,13 +9,14 @@ import type {
   ListSessionsResponse
 } from "../../shared/chat.js";
 import { logError, logInfo, toLogError } from "../logger.js";
-import type { ModelProvider } from "../providers/model-provider.js";
+import { createModelProvider } from "../providers/provider-factory.js";
 import { ChatRepository } from "../repositories/chat-repository.js";
+import { SettingsRepository } from "../repositories/settings-repository.js";
 import { systemPrompt } from "../system-prompt.js";
 
 const CONTEXT_MESSAGE_LIMIT = 20;
 
-export function createSessionsRouter(provider: ModelProvider, repository: ChatRepository): Router {
+export function createSessionsRouter(repository: ChatRepository, settingsRepository: SettingsRepository): Router {
   const router = Router();
 
   router.get("/", (_request, response) => {
@@ -92,6 +93,7 @@ export function createSessionsRouter(provider: ModelProvider, repository: ChatRe
         contentKind: typeof body.content === "string" ? "text" : "parts"
       });
 
+      const provider = createModelProvider(settingsRepository.getModelSettings());
       const result = await provider.generateChat({
         messages: [
           {

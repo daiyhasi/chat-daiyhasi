@@ -149,11 +149,25 @@ body,
   font-size: 12px;
 }
 
-.status {
+.sidebar-footer {
   flex: 0 0 auto;
-  width: 100%;
   min-width: 0;
   padding-top: 14px;
+}
+
+.settings-button.ant-btn {
+  justify-content: flex-start;
+  color: #dbeafe;
+}
+
+.settings-button.ant-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.status {
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -174,8 +188,16 @@ body,
   white-space: nowrap;
 }
 
-.ant-layout-sider-collapsed .status {
+.ant-layout-sider-collapsed .sidebar-footer {
   display: none;
+}
+
+.settings-number-field {
+  flex: 1;
+}
+
+.settings-number-field .ant-input-number {
+  width: 100%;
 }
 
 .chat-panel {

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import type { ChatContentPart, ChatRequest, ChatResponse } from "../../shared/chat.js";
 import { logError, logInfo, toLogError } from "../logger.js";
-import type { ModelProvider } from "../providers/model-provider.js";
+import { createModelProvider } from "../providers/provider-factory.js";
+import { SettingsRepository } from "../repositories/settings-repository.js";
 import { systemPrompt } from "../system-prompt.js";
 
-export function createChatRouter(provider: ModelProvider): Router {
+export function createChatRouter(settingsRepository: SettingsRepository): Router {
   const router = Router();
 
   router.post("/", async (request, response) => {
@@ -26,6 +27,7 @@ export function createChatRouter(provider: ModelProvider): Router {
         messageCount: body.messages!.length
       });
 
+      const provider = createModelProvider(settingsRepository.getModelSettings());
       const result = await provider.generateChat({
         messages: [
           {
